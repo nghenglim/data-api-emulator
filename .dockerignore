@@ -1,0 +1,7 @@
+src/**/*
+target/**/*
+!target/x86_64-unknown-linux-musl/release/data-api-local
+Cargo.lock
+Cargo.toml
+README.md
+cache/**/*
