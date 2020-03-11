@@ -539,9 +539,9 @@ async fn main() -> io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
-    let app_data = web::Data::new(AppData {
+    let app_data = AppData {
         connections: Arc::new(Mutex::new(HashMap::new())),
-    });
+    };
     println!("Starting http server: {}:{}", env::var("HOST").unwrap().as_str().to_owned(), env::var("PORT").unwrap().as_str().to_owned());
     HttpServer::new(move || {
         App::new()
