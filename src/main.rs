@@ -534,7 +534,8 @@ fn get_mysql_conn() -> mysql::Conn {
     mysql::Conn::new(format!("mysql://{}:{}@{}:{}/mysql", mysql_user, mysql_password, mysql_host, mysql_port)).unwrap()
 }
 
-fn main() -> io::Result<()> {
+#[actix_rt::main]
+async fn main() -> io::Result<()> {
     dotenv().ok();
     env_logger::init();
 
@@ -547,7 +548,7 @@ fn main() -> io::Result<()> {
             .data(web::JsonConfig::default().limit(40960)) // <- limit size of the payload (global configuration)
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
-            .register_data(app_data.clone())
+            .data(app_data.clone())
             // register simple route, handle all methods
             .service(root_index)
             .service(begin_transaction_statement)
@@ -569,4 +570,5 @@ fn main() -> io::Result<()> {
     })
     .bind(format!("{}:{}", env::var("HOST").unwrap().as_str().to_owned(), env::var("PORT").unwrap().as_str().to_owned()))?
     .run()
+    .await
 }
