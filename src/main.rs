@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::{env, io};
 
 use mysql::{
-    consts::{ColumnType as MysqlColumnType},
+    consts::{ColumnType as MysqlColumnType, ColumnFlags as MysqlColumnFlags},
     Value as MysqlValue,
     Params as MysqlParams,
 };
@@ -27,7 +27,7 @@ use actix_web::{
 };
 use core::hash::BuildHasherDefault;
 use crate::model::{TransactionStatus, ColumnField, Field, BeginTransactionRequest,BeginTransactionResponse,CommitTransactionRequest,CommitTransactionResponse,RollbackTransactionRequest,RollbackTransactionResponse,ExecuteStatementRequest,ExecuteStatementResponse,BatchExecuteStatementRequest,UpdateResult,BatchExecuteStatementResponse,ColumnMetadata,Error,MappedMysqlColumnType};
-fn map_mysql_column_type(in_column_type: MysqlColumnType) -> MappedMysqlColumnType {
+fn map_mysql_column_type(in_column_type: MysqlColumnType, in_column_flags: MysqlColumnFlags) -> MappedMysqlColumnType {
     let column_type = match in_column_type {
         MysqlColumnType::MYSQL_TYPE_DECIMAL => "DECIMAL",
         MysqlColumnType::MYSQL_TYPE_TINY => "TINY",
@@ -61,7 +61,7 @@ fn map_mysql_column_type(in_column_type: MysqlColumnType) -> MappedMysqlColumnTy
         MysqlColumnType::MYSQL_TYPE_STRING => "STRING",
         MysqlColumnType::MYSQL_TYPE_GEOMETRY => "GEOMETRY",
     };
-    let column_field = match in_column_type {
+    let mut column_field = match in_column_type {
         MysqlColumnType::MYSQL_TYPE_DECIMAL => ColumnField::DoubleValue,
         MysqlColumnType::MYSQL_TYPE_TINY => ColumnField::BooleanValue,
         MysqlColumnType::MYSQL_TYPE_SHORT => ColumnField::LongValue,
@@ -94,6 +94,9 @@ fn map_mysql_column_type(in_column_type: MysqlColumnType) -> MappedMysqlColumnTy
         MysqlColumnType::MYSQL_TYPE_STRING => ColumnField::StringValue,
         MysqlColumnType::MYSQL_TYPE_GEOMETRY => ColumnField::StringValue,
     };
+    if column_field == ColumnField::BlobValue && !in_column_flags.contains(MysqlColumnFlags::BINARY_FLAG) {
+        column_field = ColumnField::StringValue
+    }
     MappedMysqlColumnType {
         type_name: column_type.to_string(),
         column_field: column_field,
@@ -308,7 +311,8 @@ fn format_prep_exec_result(query_result: &mut mysql::QueryResult, include_result
     };
     for x in query_result.columns_ref() {
         let column_type = x.column_type();
-        let mapped_mysql_column_type = map_mysql_column_type(column_type);
+        let column_flags = x.flags();
+        let mapped_mysql_column_type = map_mysql_column_type(column_type, column_flags);
         column_types.push(mapped_mysql_column_type.clone());
         if need_column_metadata {
             column_metadata.push(ColumnMetadata {
