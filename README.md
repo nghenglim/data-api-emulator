@@ -11,7 +11,7 @@ version: '2'
 
 services:
   data-api-emulator:
-    image: nghenglim/data-api-emulator:0.0.1
+    image: nghenglim/data-api-emulator:0.1.1
     environment:
       MYSQL_HOST: db
       MYSQL_PORT: 3306
@@ -34,8 +34,8 @@ services:
 ## building
 ~~~
 docker run --net=host --rm -it -v "$(pwd)/cache/git:/home/rust/.cargo/git" -v "$(pwd)/cache/registry:/home/rust/.cargo/registry" -v "$(pwd)/Cargo.lock:/home/rust/src/Cargo.lock" -v "$(pwd)/Cargo.toml:/home/rust/src/Cargo.toml" -v "$(pwd)/target:/home/rust/src/target" -v "$(pwd)/src:/home/rust/src/src" ekidd/rust-musl-builder  bash -c "sudo chown -R rust:rust /home/rust/.cargo/git /home/rust/.cargo/registry /home/rust/src/target && cargo build --release"
-docker build -t nghenglim/data-api-emulator:0.0.2 .
-docker push nghenglim/data-api-emulator:0.0.2
+docker build -t nghenglim/data-api-emulator:0.1.1 .
+docker push nghenglim/data-api-emulator:0.1.1
 ~~~
 
 ## Running

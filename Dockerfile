@@ -9,5 +9,6 @@ ENV MYSQL_USER="root"
 ENV MYSQL_PASSWORD="example"
 ENV HOST="0.0.0.0"
 ENV PORT="8080"
+ENV JSONLIMIT="99999999"
 ENV RUST_LOG="actix_web=debug"
 CMD ["./data-api-local"]

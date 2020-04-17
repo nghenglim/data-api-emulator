@@ -2,7 +2,7 @@ version: '2'
 
 services:
   data-api-emulator:
-    image: nghenglim/data-api-emulator:0.0.2
+    image: nghenglim/data-api-emulator:0.1.1
     environment:
       MYSQL_HOST: db
       MYSQL_PORT: 3306
@@ -10,6 +10,7 @@ services:
       MYSQL_PASSWORD: example
       RESOURCE_ARN: 'arn:aws:rds:us-east-1:123456789012:cluster:dummy'
       SECRET_ARN: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:dummy'
+      JSONLIMIT: 99999999
     ports:
       - "8080:8080"
   db:

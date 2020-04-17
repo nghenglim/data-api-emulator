@@ -546,10 +546,11 @@ async fn main() -> io::Result<()> {
     let app_data = AppData {
         connections: Arc::new(Mutex::new(HashMap::new())),
     };
+    let json_limit = env::var("JSONLIMIT").unwrap().as_str().parse::<usize>().unwrap();
     println!("Starting http server: {}:{}", env::var("HOST").unwrap().as_str().to_owned(), env::var("PORT").unwrap().as_str().to_owned());
     HttpServer::new(move || {
         App::new()
-            .data(web::JsonConfig::default().limit(40960)) // <- limit size of the payload (global configuration)
+            .app_data(web::JsonConfig::default().limit(json_limit)) // <- limit size of the payload (global configuration)
             // enable logger - always register actix-web Logger middleware last
             .wrap(middleware::Logger::default())
             .data(app_data.clone())
