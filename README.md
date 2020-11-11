@@ -51,3 +51,8 @@ cargo run
 ~~~
 docker build -t local/data-api-emulator . && docker run --rm -it local/data-api-emulator
 ~~~
+
+## a little testing
+docker-compose up
+cargo run
+cargo test -- --test-threads 1

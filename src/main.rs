@@ -143,6 +143,7 @@ async fn begin_transaction_statement(begin_transaction_request_wj: web::Json<Beg
         transaction_id: transaction_id.clone()
     };
     let mut conn = get_mysql_conn();
+    // conn.query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED")?;
     conn.query("START TRANSACTION")?;
     select_database_and_schema(&mut conn, begin_transaction_request.database, begin_transaction_request.schema).expect("select db failed");
     let mut connections = app_data.connections.lock().unwrap();
@@ -179,8 +180,9 @@ async fn commit_transaction_statement(commit_transaction_request_wj: web::Json<C
         let conn = connections.get_mut(&commit_transaction_request.transaction_id).unwrap();
         conn.query("COMMIT")?;
     }
-    connections.remove(&commit_transaction_request.transaction_id);
-    drop(connections);
+    if let Some(con) = connections.remove(&commit_transaction_request.transaction_id) {
+        drop(con);
+    }
     Ok(HttpResponse::Ok()
         .json(CommitTransactionResponse {
             transaction_status: TransactionStatus::TransactionCommitted,
@@ -206,7 +208,9 @@ async fn rollback_transaction_statement(rollback_transaction_request_wj: web::Js
         conn.query("Rollback")?;
     }
     connections.remove(&rollback_transaction_request.transaction_id);
-    drop(connections);
+    if let Some(con) = connections.remove(&rollback_transaction_request.transaction_id) {
+        drop(con);
+    }
     Ok(HttpResponse::Ok()
         .json(RollbackTransactionResponse {
             transaction_status: TransactionStatus::RollbackComplete,

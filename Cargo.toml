@@ -26,3 +26,4 @@ mysql = "17.0.0"
 
 rand="0.7.2"
 twox-hash="1.1.0"
+reqwest = { version = "0.10", features = ["json"] }
