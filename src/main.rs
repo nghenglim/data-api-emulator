@@ -264,10 +264,32 @@ fn format_sql_to_snake(sqlstr: String) -> (String, HashMap<String, String>){
     let mut targetsqlvec: Vec<char> = Vec::new();
     let mut paramnamemap: HashMap<String, String> = HashMap::new();
     let mut parampostfix = 0;
+    let mut value_quote = ' ';
+    let mut is_escape = false;
     let mut is_param = false;
     let mut paramidx = (0, 0);
     for idx in 0..sqlvec.len() {
         let ch = sqlvec[idx];
+        let mut proceed_with_paramname = false;
+        if is_escape {
+            is_escape = false;
+        } else if ch == '\\' {
+            is_escape = true;
+        } else if value_quote == ' ' && (ch == '\'' || ch == '\"') {
+            value_quote = ch;
+        } else if value_quote != ' ' && ch == value_quote {
+            if ch == '\'' && idx != sqlvec.len() - 1 && sqlvec[idx - 1] == '\'' {
+                is_escape = true;
+            } else {
+                value_quote = ' ';
+            }
+        } else {
+            proceed_with_paramname = true;
+        }
+        if value_quote != ' ' || proceed_with_paramname == false {
+            targetsqlvec.push(ch);
+            continue;
+        }
         if is_param && !(char::is_ascii_alphanumeric(&ch) || ch == '_') {
             paramidx.1 = idx - 1;
             is_param = false;

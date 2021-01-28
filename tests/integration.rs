@@ -88,6 +88,7 @@ const DATABASE_MAIN: &'static str = "mysql";
 const CREATE_TEST_TABLE_SCHEMA: &'static str = "CREATE TABLE doc(
     `key` varchar(255) NOT NULL,
     `content` longtext NULL,
+    `content_extra` longtext NULL,
     `created_at` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
     `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (`key`)
@@ -95,6 +96,7 @@ const CREATE_TEST_TABLE_SCHEMA: &'static str = "CREATE TABLE doc(
 const CREATE_TEST_TABLEB_SCHEMA: &'static str = "CREATE TABLE docb (
     `key` varchar(255) NOT NULL,
     `content` longtext NULL,
+    `content_extra` longtext NULL,
     `created_at` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,
     `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL,
     PRIMARY KEY (`key`)
@@ -247,7 +249,7 @@ async fn step_2_perform_transaction() {
     let req: ExecuteStatementRequest = ExecuteStatementRequest {
         resource_arn: RESOURCE_ARN.to_owned(),
         secret_arn: SECRET_ARN.to_owned(),
-        sql: "INSERT INTO `doc` (`key`, `content`) VALUES (:key, :content_value) ON DUPLICATE KEY UPDATE content = :content_value".to_owned(),
+        sql: "INSERT INTO `doc` (`key`, `content`, `content_extra`, `updated_at`) VALUES (:key, 'testing''the\\'content value', \"I'm the king \\\"\", '2021-01-28 01:37:51') ON DUPLICATE KEY UPDATE content = :content_value".to_owned(),
         schema: None,
         database: Some(DATABASE_TEST.to_owned()),
         continue_after_timeout: None,
