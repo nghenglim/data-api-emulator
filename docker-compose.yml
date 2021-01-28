@@ -2,7 +2,7 @@ version: '2'
 
 services:
   data-api-emulator:
-    image: nghenglim/data-api-emulator:0.1.4
+    image: nghenglim/data-api-emulator:0.1.6
     environment:
       MYSQL_HOST: db
       MYSQL_PORT: 3306

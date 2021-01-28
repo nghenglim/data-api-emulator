@@ -217,7 +217,7 @@ async fn rollback_transaction_statement(rollback_transaction_request_wj: web::Js
             transaction_status: TransactionStatus::RollbackComplete,
         }))
 }
-fn put_param_to_hashmap(hashmap: &mut HashMap::<String, MysqlValue, BuildHasherDefault<XxHash>>, paramnamemap: &HashMap<String, String>, sqlstr: &String, parameters: Vec<SqlParameter>, originalsql: &String)-> Result<(), Error> {
+fn put_param_to_hashmap(hashmap: &mut HashMap::<String, MysqlValue, BuildHasherDefault<XxHash>>, paramnamemap: &HashMap<String, String>, _sqlstr: &String, parameters: Vec<SqlParameter>, _originalsql: &String)-> Result<(), Error> {
     for parameter in parameters {
         match paramnamemap.get(&parameter.name) {
             Some(snake_name) => {
@@ -248,11 +248,11 @@ fn put_param_to_hashmap(hashmap: &mut HashMap::<String, MysqlValue, BuildHasherD
                 }
             },
             None => {
-                println!("{:?} {:?}", parameter.name, paramnamemap);
-                return Err(Error{
-                    msg: format!("invalid sql: {}, debug: {}", originalsql, sqlstr),
-                    status: 400
-                })
+                // println!("{:?} {:?}", parameter.name, paramnamemap);
+                // return Err(Error{
+                //     msg: format!("invalid sql: {}, debug: {}", originalsql, sqlstr),
+                //     status: 400
+                // })
             }
         }
     }
@@ -278,7 +278,7 @@ fn format_sql_to_snake(sqlstr: String) -> (String, HashMap<String, String>){
         } else if value_quote == ' ' && (ch == '\'' || ch == '\"') {
             value_quote = ch;
         } else if value_quote != ' ' && ch == value_quote {
-            if ch == '\'' && idx != sqlvec.len() - 1 && sqlvec[idx - 1] == '\'' {
+            if ch == '\'' && idx != sqlvec.len() - 1 && sqlvec[idx + 1] == '\'' {
                 is_escape = true;
             } else {
                 value_quote = ' ';
@@ -286,6 +286,7 @@ fn format_sql_to_snake(sqlstr: String) -> (String, HashMap<String, String>){
         } else {
             proceed_with_paramname = true;
         }
+        // println!("ch {}, value quote {} proceed_with_paramname {}", ch, value_quote, proceed_with_paramname);
         if value_quote != ' ' || proceed_with_paramname == false {
             targetsqlvec.push(ch);
             continue;
@@ -307,8 +308,7 @@ fn format_sql_to_snake(sqlstr: String) -> (String, HashMap<String, String>){
             for pch in st.chars() {
                 targetsqlvec.push(pch);
             }
-        }
-        if ch == ':' && idx != sqlvec.len() - 1 && char::is_ascii_alphanumeric(&sqlvec[idx+1]) {
+        } else if ch == ':' && idx != sqlvec.len() - 1 && char::is_ascii_alphanumeric(&sqlvec[idx+1]) {
             is_param = true;
             paramidx.0 = idx + 1;
         }

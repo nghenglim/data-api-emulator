@@ -11,7 +11,7 @@ version: '2'
 
 services:
   data-api-emulator:
-    image: nghenglim/data-api-emulator:0.1.1
+    image: nghenglim/data-api-emulator:0.1.5
     environment:
       MYSQL_HOST: db
       MYSQL_PORT: 3306
@@ -19,11 +19,12 @@ services:
       MYSQL_PASSWORD: example
       RESOURCE_ARN: 'arn:aws:rds:us-east-1:123456789012:cluster:dummy'
       SECRET_ARN: 'arn:aws:secretsmanager:us-east-1:123456789012:secret:dummy'
+      JSONLIMIT: 99999999
     ports:
       - "8080:8080"
   db:
     image: mysql:5.6
-    command: --default-authentication-plugin=mysql_native_password
+    command: mysqld --sql_mode="STRICT_TRANS_TABLES" --default-authentication-plugin=mysql_native_password
     environment:
       MYSQL_ROOT_PASSWORD: example
       MYSQL_DATABASE: test
@@ -34,8 +35,8 @@ services:
 ## building
 ~~~
 docker run --net=host --rm -it -v "$(pwd)/cache/git:/home/rust/.cargo/git" -v "$(pwd)/cache/registry:/home/rust/.cargo/registry" -v "$(pwd)/Cargo.lock:/home/rust/src/Cargo.lock" -v "$(pwd)/Cargo.toml:/home/rust/src/Cargo.toml" -v "$(pwd)/target:/home/rust/src/target" -v "$(pwd)/src:/home/rust/src/src" ekidd/rust-musl-builder  bash -c "sudo chown -R rust:rust /home/rust/.cargo/git /home/rust/.cargo/registry /home/rust/src/target && cargo build --release"
-docker build -t nghenglim/data-api-emulator:0.1.4 .
-docker push nghenglim/data-api-emulator:0.1.4
+docker build -t nghenglim/data-api-emulator:0.1.6 .
+docker push nghenglim/data-api-emulator:0.1.6
 ~~~
 
 ## Running
