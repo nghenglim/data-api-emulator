@@ -8,6 +8,7 @@ extern crate serde_derive;
 
 mod model;
 
+use crate::model::SqlParameter;
 use dotenv::dotenv;
 use std::sync::Mutex;
 use crate::rand::Rng;
@@ -216,7 +217,101 @@ async fn rollback_transaction_statement(rollback_transaction_request_wj: web::Js
             transaction_status: TransactionStatus::RollbackComplete,
         }))
 }
-
+fn put_param_to_hashmap(hashmap: &mut HashMap::<String, MysqlValue, BuildHasherDefault<XxHash>>, paramnamemap: &HashMap<String, String>, sqlstr: &String, parameters: Vec<SqlParameter>, originalsql: &String)-> Result<(), Error> {
+    for parameter in parameters {
+        match paramnamemap.get(&parameter.name) {
+            Some(snake_name) => {
+                match parameter.value {
+                    Field::BlobValue(value) => {
+                        hashmap.insert(snake_name.to_string(), MysqlValue::Bytes(value.into_bytes()));
+                    },
+                    Field::BooleanValue(value) => {
+                        let boolint: u64 = if value {
+                            1
+                        } else {
+                            0
+                        };
+                        hashmap.insert(snake_name.to_string(), MysqlValue::UInt(boolint));
+                    },
+                    Field::DoubleValue(value) => {
+                        hashmap.insert(snake_name.to_string(), MysqlValue::Float(value));
+                    },
+                    Field::IsNull(_) => {
+                        hashmap.insert(snake_name.to_string(), MysqlValue::NULL);
+                    },
+                    Field::LongValue(value) => {
+                        hashmap.insert(snake_name.to_string(), MysqlValue::Int(value));
+                    },
+                    Field::StringValue(value) => {
+                        hashmap.insert(snake_name.to_string(), MysqlValue::Bytes(value.into_bytes()));
+                    },
+                }
+            },
+            None => {
+                println!("{:?} {:?}", parameter.name, paramnamemap);
+                return Err(Error{
+                    msg: format!("invalid sql: {}, debug: {}", originalsql, sqlstr),
+                    status: 400
+                })
+            }
+        }
+    }
+    Ok(())
+}
+fn format_sql_to_snake(sqlstr: String) -> (String, HashMap<String, String>){
+    // for rust-mysql v17 issue with camel case param name
+    let sqlvec: Vec<char> = sqlstr.chars().collect();
+    let mut targetsqlvec: Vec<char> = Vec::new();
+    let mut paramnamemap: HashMap<String, String> = HashMap::new();
+    let mut parampostfix = 0;
+    let mut is_param = false;
+    let mut paramidx = (0, 0);
+    for idx in 0..sqlvec.len() {
+        let ch = sqlvec[idx];
+        if is_param && !(char::is_ascii_alphanumeric(&ch) || ch == '_') {
+            paramidx.1 = idx - 1;
+            is_param = false;
+            let param: String = (&sqlvec[(paramidx.0)..(paramidx.1 + 1)]).iter().collect();
+            let st: String = match paramnamemap.get(&param) {
+                Some(o) => o.to_string(),
+                None => {
+                    let s1 = format!("q{}", parampostfix);
+                    paramnamemap.insert(param.clone(), s1.clone());
+                    parampostfix += 1;
+                    s1
+                }
+            };
+            targetsqlvec.push(':');
+            for pch in st.chars() {
+                targetsqlvec.push(pch);
+            }
+        }
+        if ch == ':' && idx != sqlvec.len() - 1 && char::is_ascii_alphanumeric(&sqlvec[idx+1]) {
+            is_param = true;
+            paramidx.0 = idx + 1;
+        }
+        if !is_param {
+            targetsqlvec.push(ch);
+        }
+    }
+    if is_param {
+        paramidx.1 = sqlstr.len() - 1;
+        let param: String = (&sqlvec[(paramidx.0)..(paramidx.1 + 1)]).iter().collect();
+        let st: String = match paramnamemap.get(&param) {
+            Some(o) => o.to_string(),
+            None => {
+                let s1 = format!("q{}", parampostfix);
+                paramnamemap.insert(param.clone(), s1.clone());
+                s1
+            }
+        };
+        targetsqlvec.push(':');
+        for pch in st.chars() {
+            targetsqlvec.push(pch);
+        }
+    }
+    (targetsqlvec.into_iter().collect(), paramnamemap)
+}
 #[post("/Execute")]
 async fn execute_statement(execute_transaction_request_wj: web::Json<ExecuteStatementRequest>, app_data: web::Data<AppData>) ->  Result<HttpResponse, Error> {
     let execute_transaction_request = execute_transaction_request_wj.into_inner();
@@ -224,37 +319,14 @@ async fn execute_statement(execute_transaction_request_wj: web::Json<ExecuteStat
         resource_arn: execute_transaction_request.resource_arn,
         secret_arn: execute_transaction_request.secret_arn,
     })?;
+
+    let (sqlstr, paramnamemap) = format_sql_to_snake(execute_transaction_request.sql.clone());
+
     let params = match execute_transaction_request.parameters {
         Some(parameters) => {
             let mut hashmap = HashMap::<String, MysqlValue, BuildHasherDefault<XxHash>>::default();
             if parameters.len() > 0 {
-                for parameter in parameters {
-                    match parameter.value {
-                        Field::BlobValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Bytes(value.into_bytes()));
-                        },
-                        Field::BooleanValue(value) => {
-                            let boolint: u64 = if value {
-                                1
-                            } else {
-                                0
-                            };
-                            hashmap.insert(parameter.name, MysqlValue::UInt(boolint));
-                        },
-                        Field::DoubleValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Float(value));
-                        },
-                        Field::IsNull(_) => {
-                            hashmap.insert(parameter.name, MysqlValue::NULL);
-                        },
-                        Field::LongValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Int(value));
-                        },
-                        Field::StringValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Bytes(value.into_bytes()));
-                        },
-                    }
-                }
+                put_param_to_hashmap(&mut hashmap, &paramnamemap, &sqlstr, parameters, &execute_transaction_request.sql)?;
                 mysql::Params::Named(hashmap)
             } else {
                 mysql::Params::Empty
@@ -266,14 +338,14 @@ async fn execute_statement(execute_transaction_request_wj: web::Json<ExecuteStat
         Some(b) => b,
         None => false,
     };
-    // println!("{} {:?}", execute_transaction_request.sql, params);
+    // println!("{} {:?}", sqlstr, params);
     let exec_result = if execute_transaction_request.transaction_id.is_none() {
         let mut conn = get_mysql_conn();
         select_database_and_schema(&mut conn, execute_transaction_request.database, execute_transaction_request.schema).expect("select db failed");
         let mut result = if params == mysql::Params::Empty {
-            conn.query(execute_transaction_request.sql)?
+            conn.query(sqlstr)?
         } else {
-            conn.prep_exec(execute_transaction_request.sql, params)?
+            conn.prep_exec(sqlstr, params)?
         };
         format_prep_exec_result(&mut result, include_result_metadata)
     } else {
@@ -288,9 +360,9 @@ async fn execute_statement(execute_transaction_request_wj: web::Json<ExecuteStat
         let mut conn = connections.get_mut(&transaction_id).unwrap();
         select_database_and_schema(&mut conn, execute_transaction_request.database, execute_transaction_request.schema).expect("select db failed");
         let mut result = if params == mysql::Params::Empty {
-            conn.query(execute_transaction_request.sql)?
+            conn.query(sqlstr)?
         } else {
-            conn.prep_exec(execute_transaction_request.sql, params)?
+            conn.prep_exec(sqlstr, params)?
         };
         format_prep_exec_result(&mut result, include_result_metadata)
     };
@@ -429,38 +501,15 @@ async fn batch_execute_statement(batch_execute_transaction_request_wj: web::Json
     //     None => false,
     // };
 
+    let (sqlstr, paramnamemap) = format_sql_to_snake(batch_execute_transaction_request.sql.clone());
+
     let param_sets = match batch_execute_transaction_request.parameter_sets {
         Some(parameter_sets) => {
             let mut vec_params: Vec<MysqlParams> = Vec::with_capacity(parameter_sets.len());
             for parameters in parameter_sets {
                 let mut hashmap = HashMap::<String, MysqlValue, BuildHasherDefault<XxHash>>::default();
-                for parameter in parameters {
-                    match parameter.value {
-                        Field::BlobValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Bytes(value.into_bytes()));
-                        },
-                        Field::BooleanValue(value) => {
-                            let boolint: u64 = if value {
-                                1
-                            } else {
-                                0
-                            };
-                            hashmap.insert(parameter.name, MysqlValue::UInt(boolint));
-                        },
-                        Field::DoubleValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Float(value));
-                        },
-                        Field::IsNull(_) => {
-                            hashmap.insert(parameter.name, MysqlValue::NULL);
-                        },
-                        Field::LongValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Int(value));
-                        },
-                        Field::StringValue(value) => {
-                            hashmap.insert(parameter.name, MysqlValue::Bytes(value.into_bytes()));
-                        },
-                    }
-                }
+                put_param_to_hashmap(&mut hashmap, &paramnamemap, &sqlstr, parameters, &batch_execute_transaction_request.sql)?;
+
                 vec_params.push(MysqlParams::Named(hashmap));
             }
             vec_params
@@ -476,7 +525,7 @@ async fn batch_execute_statement(batch_execute_transaction_request_wj: web::Json
         let mut conn = get_mysql_conn();
         select_database_and_schema(&mut conn, batch_execute_transaction_request.database, batch_execute_transaction_request.schema).expect("select db failed");
         for params in param_sets {
-            let mut result = conn.prep_exec(batch_execute_transaction_request.sql.clone(), params)?;
+            let mut result = conn.prep_exec(sqlstr.clone(), params)?;
             let generated_fields = format_batch_exec_result(&mut result)?;
             update_results.push(UpdateResult {
                 generated_fields: generated_fields,
@@ -495,7 +544,7 @@ async fn batch_execute_statement(batch_execute_transaction_request_wj: web::Json
         let mut conn = connections.get_mut(&transaction_id).unwrap();
         select_database_and_schema(&mut conn, batch_execute_transaction_request.database, batch_execute_transaction_request.schema).expect("select db failed");
         for params in param_sets {
-            let mut result = conn.prep_exec(batch_execute_transaction_request.sql.clone(), params)?;
+            let mut result = conn.prep_exec(sqlstr.clone(), params)?;
             let generated_fields = format_batch_exec_result(&mut result)?;
             update_results.push(UpdateResult {
                 generated_fields: generated_fields,

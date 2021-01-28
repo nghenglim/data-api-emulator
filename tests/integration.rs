@@ -225,12 +225,12 @@ async fn step_2_perform_transaction() {
     let req: ExecuteStatementRequest = ExecuteStatementRequest {
         resource_arn: RESOURCE_ARN.to_owned(),
         secret_arn: SECRET_ARN.to_owned(),
-        sql: "INSERT INTO `doc` (`key`, `content`) VALUES (:key, :content_value) ON DUPLICATE KEY UPDATE content = :content_value".to_owned(),
+        sql: "INSERT INTO `doc` (`key`, `content`) VALUES (:key, :contentValue) ON DUPLICATE KEY UPDATE content = :contentValue".to_owned(),
         schema: None,
         database: Some(DATABASE_TEST.to_owned()),
         continue_after_timeout: None,
         include_result_metadata: None,
-        parameters: Some(vec![SqlParameter{name: "key".to_owned(), value: Field::StringValue("doc_a".to_owned())}, SqlParameter{name: "content_value".to_owned(), value: Field::StringValue("somecontentvalue".to_owned())}]),
+        parameters: Some(vec![SqlParameter{name: "key".to_owned(), value: Field::StringValue("doc_a".to_owned())}, SqlParameter{name: "contentValue".to_owned(), value: Field::StringValue("somecontentvalue".to_owned())}]),
         transaction_id: Some(transaction_1.transaction_id.clone()),
     };
     let treq1 = client.post("http://localhost:8080/Execute")
