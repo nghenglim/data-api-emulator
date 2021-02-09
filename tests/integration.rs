@@ -249,7 +249,7 @@ async fn step_2_perform_transaction() {
     let req: ExecuteStatementRequest = ExecuteStatementRequest {
         resource_arn: RESOURCE_ARN.to_owned(),
         secret_arn: SECRET_ARN.to_owned(),
-        sql: "INSERT INTO `doc` (`key`, `content`, `content_extra`, `updated_at`) VALUES (:key, 'testing''the\\'content value', \"I'm the king \\\"\", '2021-01-28 01:37:51') ON DUPLICATE KEY UPDATE content = :content_value".to_owned(),
+        sql: "INSERT INTO `doc` (`key`, `content`, `content_extra`, `updated_at`) VALUES (:key, 'testing''the\\'content value', \"I'm the king \\\"\", '2021-02-08 13:18:58') ON DUPLICATE KEY UPDATE content = :content_value".to_owned(),
         schema: None,
         database: Some(DATABASE_TEST.to_owned()),
         continue_after_timeout: None,
@@ -300,4 +300,26 @@ async fn step_2_perform_transaction() {
         .await
         .unwrap();
     assert_eq!(body, "{\"transactionStatus\":\"Transaction Committed\"}");
+
+    let req: ExecuteStatementRequest = ExecuteStatementRequest {
+        resource_arn: RESOURCE_ARN.to_owned(),
+        secret_arn: SECRET_ARN.to_owned(),
+        sql: "select updated_at from doc where `key`='doc_b'".to_owned(),
+        schema: None,
+        database: Some(DATABASE_TEST.to_owned()),
+        continue_after_timeout: None,
+        include_result_metadata: None,
+        parameters: None,
+        transaction_id: None,
+    };
+
+    let body = client.post("http://localhost:8080/Execute")
+        .json(&req)
+        .send()
+        .await
+        .unwrap()
+        .text()
+        .await
+        .unwrap();
+    assert_eq!(body, "{\"numberOfRecordsUpdated\":0,\"records\":[[{\"stringValue\":\"2021-02-08 13:18:58\"}]],\"columnMetadata\":[]}");
 }
