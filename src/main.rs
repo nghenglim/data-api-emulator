@@ -452,8 +452,8 @@ fn format_prep_exec_result(query_result: &mut mysql::QueryResult, include_result
                     MysqlValue::Float(value) => {
                         Ok(Field::DoubleValue(value.clone() as f64))
                     },
-                    MysqlValue::Date(dy, dm, dd, h, m, s, ms) => {
-                        Ok(Field::StringValue(format!("{}-{:02}{:02} {:02}:{:02}:{:02}.{:03}", dy, dm, dd, h, m, s, ms)))
+                    MysqlValue::Date(dy, dm, dd, h, m, s, _ms) => {
+                        Ok(Field::StringValue(format!("{}-{:02}-{:02} {:02}:{:02}:{:02}", dy, dm, dd, h, m, s)))
                     },
                     MysqlValue::Time(_is_negative, _d, h, m, s, _ms) => {
                         Ok(Field::StringValue(format!("{:02}:{:02}:{:02}", h, m, s)))

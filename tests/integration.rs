@@ -304,12 +304,12 @@ async fn step_2_perform_transaction() {
     let req: ExecuteStatementRequest = ExecuteStatementRequest {
         resource_arn: RESOURCE_ARN.to_owned(),
         secret_arn: SECRET_ARN.to_owned(),
-        sql: "select updated_at from doc where `key`='doc_b'".to_owned(),
+        sql: "select updated_at from doc where `key`=:key".to_owned(),
         schema: None,
         database: Some(DATABASE_TEST.to_owned()),
         continue_after_timeout: None,
         include_result_metadata: None,
-        parameters: None,
+        parameters: Some(vec![SqlParameter{name: "key".to_owned(), value: Field::StringValue("doc_b".to_owned())}]),
         transaction_id: None,
     };
 
